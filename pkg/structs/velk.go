@@ -10,10 +10,11 @@ import (
 )
 
 type VelkServer struct {
-	Server      net.Listener
-	Addr        string
-	Players     []interfaces.CharacterInterface
-	ColorServce interfaces.ColorServiceInterface
+	Server       net.Listener
+	Addr         string
+	Players      []interfaces.CharacterInterface
+	Connections  []interfaces.ConnectionInterface
+	ColorService interfaces.ColorServiceInterface
 }
 
 func NewVelkServer(addr string) (*VelkServer, error) {
@@ -23,10 +24,10 @@ func NewVelkServer(addr string) (*VelkServer, error) {
 	}
 
 	return &VelkServer{
-		Server:      server,
-		Addr:        addr,
-		Players:     make([]interfaces.CharacterInterface, 0),
-		ColorServce: NewColorService(),
+		Server:       server,
+		Addr:         addr,
+		Players:      make([]interfaces.CharacterInterface, 0),
+		ColorService: NewColorService(),
 	}, nil
 }
 
@@ -35,20 +36,20 @@ func (v *VelkServer) GetPlayers() []interfaces.CharacterInterface {
 }
 
 func (v *VelkServer) GetColorService() interfaces.ColorServiceInterface {
-	return v.ColorServce
+	return v.ColorService
 }
 
 func (v *VelkServer) GameLoop() {
 	tickChan := make(chan time.Time)
-	newConnChan := make(chan *Player)
+	newPlayerChan := make(chan *Player)
 	CommandList := make(map[string]interfaces.CommandInterface)
 	CommandList["say"] = &commands.Say{Server: v}
 
-	go v.acceptConnections(newConnChan)
+	go v.acceptConnections(newPlayerChan)
 	go v.tick(tickChan)
 	for {
 		select {
-		case player := <-newConnChan:
+		case player := <-newPlayerChan:
 			v.Players = append(v.Players, player)
 		case <-tickChan:
 			for _, playerInterface := range v.Players {
@@ -57,12 +58,22 @@ func (v *VelkServer) GameLoop() {
 				if err != nil {
 					continue
 				}
-				cmd, cmdSuffix := processCommandString(out)
-				action, actionExists := CommandList[cmd]
-				if actionExists {
-					action.Action(player, cmd, cmdSuffix)
-				} else {
-					player.SendToCharacter("Huh?\r\n")
+				switch player.State {
+				case PlayerStateLoading:
+					{
+						player.SendToCharacter("What is thy Name?")
+						player.State = PlayerStateLoading
+					}
+				case PlayerStateActive:
+					{
+						cmd, cmdSuffix := processCommandString(out)
+						action, actionExists := CommandList[cmd]
+						if actionExists {
+							action.Action(player, cmd, cmdSuffix)
+						} else {
+							player.SendToCharacter("Huh?\r\n")
+						}
+					}
 				}
 			}
 		}
@@ -87,8 +98,13 @@ func (v *VelkServer) acceptConnections(newConn chan *Player) {
 			log.Println("Failed to accept conn.", err)
 			continue
 		}
+		//What is thy Name?
+		//Read name input
+		//check name exist in files
+		//If exists check password
+		//if does not char creation
 
-		player, err := NewPlayer(conn, v)
+		player, err := NewPlayer(NewConnection(conn), v)
 		if err != nil {
 			log.Println("failed to create player.", err)
 			continue

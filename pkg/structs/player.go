@@ -1,32 +1,39 @@
 package structs
 
 import (
+	"github.com/dropbox/godropbox/container/bitvector"
 	"github.com/google/uuid"
 	"log"
-	"net"
 	"velk2/pkg/interfaces"
 	"velk2/pkg/libs"
 )
 
+const PlayerStateLoading = "PLAYER_STATE_LOADING"
+const PlayerStateActive = "PLAYER_STATE_ACTIVE"
+const PlayerStateNaming = "PLAYER_STATE_NAMING"
+
 type Player struct {
 	UUID          uuid.UUID
-	Connection    net.Conn
+	Connection    interfaces.ConnectionInterface
 	Name          string
 	CommandBuffer *libs.Queue
 	Server        interfaces.ServerInterface
+	Position      bitvector.BitVector
+	State         string
 }
 
-func NewPlayer(conn net.Conn, server interfaces.ServerInterface) (*Player, error) {
+func NewPlayer(connection interfaces.ConnectionInterface, server interfaces.ServerInterface) (*Player, error) {
 	uuid, err := uuid.NewUUID()
 	if err != nil {
 		return nil, err
 	}
 	player := &Player{
 		UUID:          uuid,
-		Connection:    conn,
+		Connection:    connection,
 		Name:          "",
 		CommandBuffer: libs.NewQueue(300),
 		Server:        server,
+		State:         PlayerStateLoading,
 	}
 	go player.readConn()
 	return player, nil
@@ -38,7 +45,7 @@ func (p *Player) GetUUID() string {
 
 func (p *Player) SendToCharacter(data string) error {
 	data = p.Server.GetColorService().ProcessString(data)
-	_, err := p.Connection.Write([]byte(data))
+	err := p.Connection.Write(data)
 	if err != nil {
 		return err
 	}
@@ -51,14 +58,10 @@ func (p *Player) closeConnection() {
 
 func (p *Player) readConn() {
 	for {
-		buf := make([]byte, 512)
-		nr, err := p.Connection.Read(buf)
+		data, err := p.Connection.Read()
 		if err != nil {
-			p.closeConnection()
-			return
-		}
 
-		data := buf[0 : nr-1]
+		}
 		p.CommandBuffer.Insert(string(data))
 		log.Println("Server got:", string(data))
 	}
