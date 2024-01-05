@@ -1,6 +1,6 @@
 package interfaces
 
 type ServerInterface interface {
-	GetPlayers() []CharacterInterface
+	GetPlayers() []Character
 	GetColorService() ColorServiceInterface
 }

@@ -1,18 +1,20 @@
 package structs
 
 import (
+	"fmt"
 	"log"
 	"net"
 	"strings"
 	"time"
 	"velk2/pkg/commands"
 	"velk2/pkg/interfaces"
+	"velk2/pkg/utils"
 )
 
 type VelkServer struct {
 	Server       net.Listener
 	Addr         string
-	Players      []interfaces.CharacterInterface
+	Players      []interfaces.Character
 	Connections  []interfaces.ConnectionInterface
 	ColorService interfaces.ColorServiceInterface
 }
@@ -26,12 +28,12 @@ func NewVelkServer(addr string) (*VelkServer, error) {
 	return &VelkServer{
 		Server:       server,
 		Addr:         addr,
-		Players:      make([]interfaces.CharacterInterface, 0),
+		Players:      make([]interfaces.Character, 0),
 		ColorService: NewColorService(),
 	}, nil
 }
 
-func (v *VelkServer) GetPlayers() []interfaces.CharacterInterface {
+func (v *VelkServer) GetPlayers() []interfaces.Character {
 	return v.Players
 }
 
@@ -42,8 +44,24 @@ func (v *VelkServer) GetColorService() interfaces.ColorServiceInterface {
 func (v *VelkServer) GameLoop() {
 	tickChan := make(chan time.Time)
 	newPlayerChan := make(chan *Player)
-	CommandList := make(map[string]interfaces.CommandInterface)
-	CommandList["say"] = &commands.Say{Server: v}
+	Cmds := NewCommands()
+	Cmds.addCommand("north", &commands.Move{Server: v})
+	Cmds.addCommand("east", &commands.Move{Server: v})
+	Cmds.addCommand("south", &commands.Move{Server: v})
+	Cmds.addCommand("west", &commands.Move{Server: v})
+	Cmds.addCommand("up", &commands.Move{Server: v})
+	Cmds.addCommand("down", &commands.Move{Server: v})
+	Cmds.addCommand("gossip", &commands.Gossip{Server: v})
+	Cmds.addCommand("look", &commands.Look{Server: v})
+	Cmds.addCommand("say", &commands.Say{Server: v})
+
+	zone := NewZone(1)
+	room := zone.CreateRoom()
+	room.SetName("The Void")
+	room2 := zone.CreateRoom()
+
+	room.SetExit("north", room2)
+	room2.SetExit("south", room)
 
 	go v.acceptConnections(newPlayerChan)
 	go v.tick(tickChan)
@@ -54,21 +72,46 @@ func (v *VelkServer) GameLoop() {
 		case <-tickChan:
 			for _, playerInterface := range v.Players {
 				player := playerInterface.(*Player)
-				out, err := player.CommandBuffer.Remove()
-				if err != nil {
-					continue
-				}
 				switch player.State {
 				case PlayerStateLoading:
 					{
-						player.SendToCharacter("What is thy Name?")
-						player.State = PlayerStateLoading
+						player.SendToCharacter("What is thy name?")
+						player.State = PlayerStateName
 					}
+				case PlayerStateName:
+					{
+						out, err := player.CommandBuffer.Remove()
+						if err != nil {
+							continue
+						}
+						out = strings.ToLower(strings.TrimSpace(out))
+
+						if utils.HasSpecialChar(out) {
+							player.SendToCharacter("Name cannot have special characters.\r\n")
+							player.State = PlayerStateLoading
+							break
+						}
+
+						//todo check name length
+
+						player.Load(strings.TrimSpace(out))
+						player.Save()
+						player.SendToCharacter(fmt.Sprintf("Welcome %s\r\n", player.GetName()))
+						player.State = PlayerStateActive
+						player.Room = room
+						room.AddCharacter(player)
+					}
+
 				case PlayerStateActive:
 					{
+						out, err := player.CommandBuffer.Remove()
+						if err != nil {
+							continue
+						}
 						cmd, cmdSuffix := processCommandString(out)
-						action, actionExists := CommandList[cmd]
-						if actionExists {
+						log.Println(fmt.Sprintf("command:'%s'", cmd))
+						action := Cmds.getCommand(cmd)
+						if action != nil {
 							action.Action(player, cmd, cmdSuffix)
 						} else {
 							player.SendToCharacter("Huh?\r\n")
@@ -85,7 +128,7 @@ func processCommandString(commandString string) (string, string) {
 	commandSplit := strings.SplitN(commandString, " ", 2)
 
 	if len(commandSplit) < 2 {
-		return commandSplit[0], ""
+		return strings.ToLower(strings.TrimSuffix(strings.TrimSuffix(commandSplit[0], "\n"), "\r")), ""
 	}
 
 	return strings.ToLower(commandSplit[0]), commandSplit[1]
@@ -98,11 +141,6 @@ func (v *VelkServer) acceptConnections(newConn chan *Player) {
 			log.Println("Failed to accept conn.", err)
 			continue
 		}
-		//What is thy Name?
-		//Read name input
-		//check name exist in files
-		//If exists check password
-		//if does not char creation
 
 		player, err := NewPlayer(NewConnection(conn), v)
 		if err != nil {
@@ -114,8 +152,9 @@ func (v *VelkServer) acceptConnections(newConn chan *Player) {
 }
 
 func (v *VelkServer) tick(tick chan time.Time) {
+	ticker := time.NewTicker(100 * time.Microsecond)
+	defer ticker.Stop()
 	for {
-		time.Sleep(100 * time.Microsecond)
-		tick <- time.Now()
+		tick <- <-ticker.C
 	}
 }

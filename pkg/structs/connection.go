@@ -51,5 +51,8 @@ func (c *Connection) Read() (string, error) {
 }
 
 func (c *Connection) Close() {
-	c.conn.Close()
+	err := c.conn.Close()
+	if err != nil {
+		return
+	}
 }
