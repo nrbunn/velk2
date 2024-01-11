@@ -2,12 +2,12 @@ package main
 
 import (
 	"log"
-	"velk2/pkg/structs"
+	"velk2/internal/velk"
 )
 
 func main() {
 	addr := "localhost:9999"
-	server, err := structs.NewVelkServer(addr)
+	server, err := velk.NewVelkServer(addr)
 	if err != nil {
 		log.Fatalf("Failed to start server at %s", addr)
 	}

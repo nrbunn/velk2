@@ -1,4 +1,4 @@
-package structs
+package velk
 
 import (
 	"bytes"

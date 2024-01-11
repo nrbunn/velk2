@@ -1,5 +1,7 @@
 package utils
 
+var Directions = []string{"north", "east", "south", "west", "up", "down"}
+
 const DIR_NORTH = 0
 const DIR_EAST = 1
 const DIR_SOUTH = 2
