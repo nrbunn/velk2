@@ -41,20 +41,17 @@ func initializeCommands() *Commands {
 }
 
 func initializeRooms() {
-	zone := NewZone(1)
-	Zones = append(Zones, zone)
-	room := zone.CreateRoom()
-	room.Name = "The Void"
-	room2 := zone.CreateRoom()
-	room.SetExit("north", room2)
-	room2.SetExit("south", room)
+	err := LoadZones()
+	if err != nil {
+		log.Fatal(err)
+	}
 
-	mob := NewMob()
-	mob.Name = "goblin"
-	mob.ShortDesc = "a goblin"
-	mob.Resources.Health = 5
-	mob.Room = room
-	room.AddMob(mob)
+	//mob := NewMob()
+	//mob.Name = "goblin"
+	//mob.ShortDesc = "a goblin"
+	//mob.Resources.Health = 5
+	//mob.Room = room
+	//room.AddMob(mob)
 
 }
 

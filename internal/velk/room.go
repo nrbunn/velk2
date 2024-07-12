@@ -1,26 +1,31 @@
 package velk
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/wk8/go-ordered-map/v2"
+	"os"
+	"path/filepath"
+	"strconv"
 	"velk2/internal/utils"
 )
 
 type Room struct {
-	Id          int
-	Name        string
-	Description string
-	Characters  []*Player
-	Mobs        []*Mob
-	Exits       *orderedmap.OrderedMap[string, *Exit]
-	Zone        *Zone
+	Id          int                                  `json:"id"`
+	Name        string                               `json:"name"`
+	Description string                               `json:"description"`
+	Characters  []*Player                            `json:"-"`
+	Mobs        []*Mob                               `json:"-"`
+	Exits       *orderedmap.OrderedMap[string, Rnum] `json:"exits"`
+	Zone        *Zone                                `json:"-"`
 	//Objects []*interfaces.Objects
 
 }
 
 func NewRoom(id int, zone *Zone) *Room {
-	exits := orderedmap.New[string, *Exit]()
+	exits := orderedmap.New[string, Rnum]()
 	for _, direction := range utils.Directions {
-		exits.Set(direction, nil)
+		exits.Set(direction, Rnum{ZoneId: -1, RoomId: -1})
 	}
 	return &Room{
 		Id:          id,
@@ -31,6 +36,34 @@ func NewRoom(id int, zone *Zone) *Room {
 		Exits:       exits,
 		Zone:        zone,
 	}
+}
+
+func (r *Room) Save() error {
+	dir := filepath.Join("wld", "zone", strconv.Itoa(r.Zone.Id))
+	err := os.MkdirAll(dir, 0755)
+	if err != nil {
+		return err
+	}
+	file, err := os.Create(filepath.Join(dir, fmt.Sprintf("%d.json", r.Id)))
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	data, err := json.Marshal(r)
+	if err != nil {
+		return err
+	}
+	_, err = file.Write(data)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (r *Room) GetRnum() Rnum {
+	return Rnum{ZoneId: r.Zone.Id, RoomId: r.Id}
 }
 
 func (r *Room) AddCharacter(targetCharacter *Player) {
@@ -57,22 +90,18 @@ func (r *Room) RemoveMob(targetMob *Mob) {
 	}
 }
 
-func (r *Room) SetExit(dir string, room *Room) error {
+func (r *Room) SetExit(dir string, rnum Rnum) error {
 
-	exit := &Exit{
-		Room: room,
-	}
-
-	r.Exits.Set(dir, exit)
+	r.Exits.Set(dir, rnum)
 
 	return nil
 }
 
-func (r *Room) GetExit(dir string) *Exit {
+func (r *Room) GetExit(dir string) Rnum {
 
 	if exit, ok := r.Exits.Get(dir); ok {
 		return exit
 	}
 
-	return nil
+	return Rnum{ZoneId: -1, RoomId: -1}
 }

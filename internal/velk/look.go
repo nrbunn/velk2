@@ -12,7 +12,7 @@ func Look(player *Player, _ string, _ ...string) {
 	}
 
 	builder := strings.Builder{}
-	builder.WriteString(fmt.Sprintf("&c%s&n\r\n", room.Name))
+	builder.WriteString(fmt.Sprintf("&c%s&n[%s]\r\n", room.Name, room.GetRnum().ToString()))
 	builder.WriteString(fmt.Sprintf("&w%s&n\r\n", room.Description))
 	builder.WriteString(fmt.Sprintf("&c%s&n\r\n", printExits(room)))
 	for _, character := range room.Characters {
@@ -30,7 +30,7 @@ func Look(player *Player, _ string, _ ...string) {
 func printExits(room *Room) (exitsStr string) {
 	exitsStr = "[ "
 	for pair := room.Exits.Oldest(); pair != nil; pair = pair.Next() {
-		if pair.Value != nil {
+		if pair.Value.RoomId != -1 && pair.Value.ZoneId != -1 {
 			exitsStr += pair.Key + " "
 		}
 	}

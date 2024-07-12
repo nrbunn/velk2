@@ -8,8 +8,9 @@ import (
 
 func Move(player *Player, command string, _ ...string) {
 	targetExit := getTargetExit(command)
-	targetRoom := player.Room.GetExit(targetExit)
+	targetRnum := player.Room.GetExit(targetExit)
 
+	targetRoom := Zones[targetRnum.ZoneId].GetRoom(targetRnum.RoomId)
 	if targetRoom == nil {
 		player.SendToCharacter("You can't go that way.\r\n")
 		return
@@ -17,9 +18,9 @@ func Move(player *Player, command string, _ ...string) {
 
 	player.Room.RemoveCharacter(player)
 	sendToRoom(player.Room, fmt.Sprintf("%s has left.\r\n", player.Name))
-	player.Room = targetRoom.TargetRoom()
-	sendToRoom(targetRoom.TargetRoom(), fmt.Sprintf("%s has arrived.\r\n", player.Name))
-	targetRoom.TargetRoom().AddCharacter(player)
+	player.Room = targetRoom
+	sendToRoom(targetRoom, fmt.Sprintf("%s has arrived.\r\n", player.Name))
+	targetRoom.AddCharacter(player)
 
 	Look(player, "")
 

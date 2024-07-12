@@ -35,7 +35,7 @@ type Player struct {
 	Position        bitvector.BitVector `json:"position"`
 	State           string              `json:"-"`
 	Room            *Room               `json:"-"`
-	RoomId          string              `json:"roomid"`
+	roomId          string              `json:"roomid"`
 	Resources       *Resources          `json:"resources"`
 	FightingTargets []*Mob              `json:"-"`
 	AttackSpeed     float32             `json:"attackspeed"`

@@ -2,6 +2,7 @@ package velk
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"strings"
 )
@@ -98,11 +99,25 @@ func handleReditSave(player *Player) {
 	player.Olc.Redit.TargetRoom.Name = player.Olc.Redit.EditRoom.Name
 	player.Olc.Redit.TargetRoom.Description = player.Olc.Redit.EditRoom.Description
 	for pair := player.Olc.Redit.EditRoom.Exits.Oldest(); pair != nil; pair = pair.Next() {
-		if pair.Value != nil && pair.Value.Room.Id == 0 {
-			pair.Value = &Exit{Room: player.Olc.Redit.EditRoom.Zone.CreateRoom()}
-
+		if pair.Value.ZoneId == -2 && pair.Value.RoomId == -2 {
+			room := player.Olc.Redit.TargetRoom.Zone.CreateRoom()
+			targetroomdir := getOppositeDirection(pair.Key)
+			room.Exits.Set(targetroomdir, Rnum{ZoneId: player.Olc.Redit.EditRoom.Zone.Id, RoomId: player.Olc.Redit.EditRoom.Id})
+			err := room.Save()
+			if err != nil {
+				return
+			}
+			player.Olc.Redit.TargetRoom.Exits.Set(pair.Key, Rnum{ZoneId: room.Zone.Id, RoomId: room.Id})
+		} else {
+			player.Olc.Redit.TargetRoom.Exits.Set(pair.Key, pair.Value)
 		}
-		player.Olc.Redit.TargetRoom.Exits.Set(pair.Key, pair.Value)
+
+	}
+	err := player.Olc.Redit.TargetRoom.Save()
+	if err != nil {
+		log.Printf("Error saving room: %v\n", err)
+		player.SendToCharacter("Failed to save room")
+		return
 	}
 	player.State = PlayerStateActive
 	player.Olc.Mode = Inactive
@@ -116,8 +131,8 @@ func handleReditMainMenu(player *Player) {
 	builder.WriteString(fmt.Sprintf("(2)Description:\r\n%s\r\n", player.Olc.Redit.EditRoom.Description))
 	builder.WriteString("(3)Exits:\r\n")
 	for pair := player.Olc.Redit.EditRoom.Exits.Oldest(); pair != nil; pair = pair.Next() {
-		if pair.Value != nil {
-			builder.WriteString(fmt.Sprintf("%s: %d\r\n", pair.Key, pair.Value.Room.Id))
+		if pair.Value.ZoneId != -1 && pair.Value.RoomId != -1 {
+			builder.WriteString(fmt.Sprintf("%s: %s\r\n", pair.Key, pair.Value.ToString()))
 		} else {
 			builder.WriteString(fmt.Sprintf("%s: None\r\n", pair.Key))
 		}
@@ -208,8 +223,8 @@ func handleReditExits(player *Player) {
 	builder := strings.Builder{}
 	i := 1
 	for pair := player.Olc.Redit.EditRoom.Exits.Oldest(); pair != nil; pair = pair.Next() {
-		if pair.Value != nil {
-			builder.WriteString(fmt.Sprintf("(%d)%s: %d\r\n", i, pair.Key, pair.Value.Room.Id))
+		if pair.Value.RoomId != -1 && pair.Value.ZoneId != -1 {
+			builder.WriteString(fmt.Sprintf("(%d)%s: %s\r\n", i, pair.Key, pair.Value.ToString()))
 		} else {
 			builder.WriteString(fmt.Sprintf("(%d)%s: None\r\n", i, pair.Key))
 		}
@@ -253,21 +268,21 @@ func handleReditExitsInput(player *Player) {
 }
 
 func handleReditExitEdit(player *Player) {
-	var exit *Exit
+	var rnum Rnum
 	var found bool
-	if exit, found = player.Olc.Redit.EditRoom.Exits.Get(player.Olc.Redit.EditDirection); !found {
+	if rnum, found = player.Olc.Redit.EditRoom.Exits.Get(player.Olc.Redit.EditDirection); !found {
 		player.SendToCharacter("Exit not found.\r\n")
 		player.Olc.Redit.State = ReditExits
 		return
 	}
 
 	var roomId string
-	if exit == nil {
+	if rnum.ZoneId == -1 && rnum.RoomId == -1 {
 		roomId = "None"
-	} else if exit.Room.Id == 0 {
+	} else if rnum.RoomId == 0 {
 		roomId = "New Room"
 	} else {
-		roomId = strconv.Itoa(exit.Room.Id)
+		roomId = rnum.ToString()
 	}
 
 	builder := strings.Builder{}
@@ -307,32 +322,33 @@ func handleReditExitEditRoomSelect(player *Player) {
 }
 
 func handleReditExitEditRoomSelectInput(player *Player) {
-	roomId, err := player.CommandBuffer.Remove()
+	rnumStr, err := player.CommandBuffer.Remove()
 	if err != nil {
 		return
 	}
-	roomId = strings.TrimSpace(roomId)
-	roomIdInt, err := strconv.Atoi(roomId)
+
+	rnum, err := ParseRnum(rnumStr)
 	if err != nil {
 		player.SendToCharacter("Invalid room id.\r\n")
 		player.Olc.Redit.State = ReditExitEdit
 		return
 	}
-	if len(player.Olc.Redit.EditRoom.Zone.Rooms) < roomIdInt {
+	if len(player.Olc.Redit.EditRoom.Zone.Rooms) < rnum.RoomId {
 		player.SendToCharacter("Invalid room id.\r\n")
 		player.Olc.Redit.State = ReditExitEdit
 		return
 	}
-	player.Olc.Redit.EditRoom.Exits.Set(player.Olc.Redit.EditDirection, &Exit{player.Olc.Redit.EditRoom.Zone.Rooms[roomIdInt]})
+
+	player.Olc.Redit.EditRoom.Exits.Set(player.Olc.Redit.EditDirection, rnum)
 	player.Olc.Redit.State = ReditExits
 }
 
 func handleReditExitEditNewRoom(player *Player) {
-	player.Olc.Redit.EditRoom.Exits.Set(player.Olc.Redit.EditDirection, &Exit{NewRoom(0, player.Olc.Redit.EditRoom.Zone)})
+	player.Olc.Redit.EditRoom.Exits.Set(player.Olc.Redit.EditDirection, Rnum{ZoneId: -2, RoomId: -2})
 	player.Olc.Redit.State = ReditExits
 }
 
 func handleReditExitEditRemoveRoom(player *Player) {
-	player.Olc.Redit.EditRoom.Exits.Set(player.Olc.Redit.EditDirection, nil)
+	player.Olc.Redit.EditRoom.Exits.Set(player.Olc.Redit.EditDirection, Rnum{ZoneId: -1, RoomId: -1})
 	player.Olc.Redit.State = ReditExits
 }
