@@ -2,18 +2,18 @@ package velk
 
 import "fmt"
 
-type Rnum struct {
-	ZoneId int
-	RoomId int
+type Vnum struct {
+	ZoneId    int
+	VirtualId int
 }
 
-func (r Rnum) ToString() string {
-	return fmt.Sprintf("%d-%d", r.ZoneId, r.RoomId)
+func (r Vnum) ToString() string {
+	return fmt.Sprintf("%d-%d", r.ZoneId, r.VirtualId)
 }
 
-func ParseRnum(str string) (Rnum, error) {
-	r := &Rnum{}
-	_, err := fmt.Sscanf(str, "%d-%d", &r.ZoneId, &r.RoomId)
+func ParseVnum(str string) (Vnum, error) {
+	r := &Vnum{}
+	_, err := fmt.Sscanf(str, "%d-%d", &r.ZoneId, &r.VirtualId)
 	return *r, err
 }
 

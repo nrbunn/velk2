@@ -10,22 +10,40 @@ import (
 	"velk2/internal/utils"
 )
 
+type SpawnType int
+type SpawnStrategy int
+
+const (
+	SpawnTypeMob    SpawnType = 1
+	SpawnTypeObject SpawnType = 2
+)
+const (
+	SpawnStrategyRoomSpawnCount SpawnStrategy = 1
+)
+
+type SpawnData struct {
+	Vnum      Vnum
+	SpawnType SpawnType
+}
+
 type Room struct {
-	Id          int                                  `json:"id"`
-	Name        string                               `json:"name"`
-	Description string                               `json:"description"`
-	Characters  []*Player                            `json:"-"`
-	Mobs        []*Mob                               `json:"-"`
-	Exits       *orderedmap.OrderedMap[string, Rnum] `json:"exits"`
-	Zone        *Zone                                `json:"-"`
+	Id               int                                  `json:"id"`
+	Name             string                               `json:"name"`
+	Description      string                               `json:"description"`
+	Characters       []*Player                            `json:"-"`
+	Mobs             []*Mob                               `json:"-"`
+	Exits            *orderedmap.OrderedMap[string, Vnum] `json:"exits"`
+	Zone             *Zone                                `json:"-"`
+	SpawnInformation []SpawnData                          `json:"spawn_data"`
+
 	//Objects []*interfaces.Objects
 
 }
 
 func NewRoom(id int, zone *Zone) *Room {
-	exits := orderedmap.New[string, Rnum]()
+	exits := orderedmap.New[string, Vnum]()
 	for _, direction := range utils.Directions {
-		exits.Set(direction, Rnum{ZoneId: -1, RoomId: -1})
+		exits.Set(direction, Vnum{ZoneId: -1, VirtualId: -1})
 	}
 	return &Room{
 		Id:          id,
@@ -35,6 +53,19 @@ func NewRoom(id int, zone *Zone) *Room {
 		Mobs:        make([]*Mob, 0),
 		Exits:       exits,
 		Zone:        zone,
+	}
+}
+
+func (r *Room) SpawnMobs(z *Zone) {
+	for _, spawnData := range r.SpawnInformation {
+		if len(r.Mobs) >= r.MaxMobs || mobExistsInZone(z, spawnData.Mob) {
+			continue
+		}
+
+		newMob := NewMob(spawnData.Mob.Name, spawnData.Mob.HP)
+		r.Mobs[newMob.ID] = newMob
+		z.Mobs[newMob.ID] = newMob
+		fmt.Printf("A %s has spawned in room %s\n", newMob.Name, r.Name)
 	}
 }
 
@@ -62,8 +93,8 @@ func (r *Room) Save() error {
 	return nil
 }
 
-func (r *Room) GetRnum() Rnum {
-	return Rnum{ZoneId: r.Zone.Id, RoomId: r.Id}
+func (r *Room) GetRnum() Vnum {
+	return Vnum{ZoneId: r.Zone.Id, VirtualId: r.Id}
 }
 
 func (r *Room) AddCharacter(targetCharacter *Player) {
@@ -90,18 +121,18 @@ func (r *Room) RemoveMob(targetMob *Mob) {
 	}
 }
 
-func (r *Room) SetExit(dir string, rnum Rnum) error {
+func (r *Room) SetExit(dir string, rnum Vnum) error {
 
 	r.Exits.Set(dir, rnum)
 
 	return nil
 }
 
-func (r *Room) GetExit(dir string) Rnum {
+func (r *Room) GetExit(dir string) Vnum {
 
 	if exit, ok := r.Exits.Get(dir); ok {
 		return exit
 	}
 
-	return Rnum{ZoneId: -1, RoomId: -1}
+	return Vnum{ZoneId: -1, VirtualId: -1}
 }

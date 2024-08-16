@@ -30,7 +30,7 @@ func Look(player *Player, _ string, _ ...string) {
 func printExits(room *Room) (exitsStr string) {
 	exitsStr = "[ "
 	for pair := room.Exits.Oldest(); pair != nil; pair = pair.Next() {
-		if pair.Value.RoomId != -1 && pair.Value.ZoneId != -1 {
+		if pair.Value.VirtualId != -1 && pair.Value.ZoneId != -1 {
 			exitsStr += pair.Key + " "
 		}
 	}

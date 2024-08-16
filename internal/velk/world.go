@@ -17,7 +17,9 @@ func LoadZones() error {
 		if file.IsDir() {
 			zonedir := filepath.Join(dir, file.Name(), "metadata.json")
 			log.Println("Loading Zone", zonedir)
-			zone := &Zone{}
+			zone := &Zone{
+				Rooms: make(map[int]*Room),
+			}
 
 			data, err := ioutil.ReadFile(zonedir)
 			if err != nil {
@@ -28,6 +30,13 @@ func LoadZones() error {
 				return err
 			}
 			Zones[zone.Id] = zone
+			zone.Mobs = make(map[int]*Mob)
+
+			err = zone.LoadMobs()
+			if err != nil {
+				return err
+			}
+
 			err = zone.LoadRooms()
 			if err != nil {
 				return err

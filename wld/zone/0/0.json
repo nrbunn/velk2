@@ -1,1 +1,0 @@
-{"id":0,"name":"The Void","description":"This room has no description","exits":{"north":{"ZoneId":0,"RoomId":1},"east":{"ZoneId":0,"RoomId":2},"south":{"ZoneId":-1,"RoomId":-1},"west":{"ZoneId":-1,"RoomId":-1},"up":{"ZoneId":-1,"RoomId":-1},"down":{"ZoneId":-1,"RoomId":-1}}}

@@ -99,15 +99,15 @@ func handleReditSave(player *Player) {
 	player.Olc.Redit.TargetRoom.Name = player.Olc.Redit.EditRoom.Name
 	player.Olc.Redit.TargetRoom.Description = player.Olc.Redit.EditRoom.Description
 	for pair := player.Olc.Redit.EditRoom.Exits.Oldest(); pair != nil; pair = pair.Next() {
-		if pair.Value.ZoneId == -2 && pair.Value.RoomId == -2 {
+		if pair.Value.ZoneId == -2 && pair.Value.VirtualId == -2 {
 			room := player.Olc.Redit.TargetRoom.Zone.CreateRoom()
 			targetroomdir := getOppositeDirection(pair.Key)
-			room.Exits.Set(targetroomdir, Rnum{ZoneId: player.Olc.Redit.EditRoom.Zone.Id, RoomId: player.Olc.Redit.EditRoom.Id})
+			room.Exits.Set(targetroomdir, Vnum{ZoneId: player.Olc.Redit.EditRoom.Zone.Id, VirtualId: player.Olc.Redit.EditRoom.Id})
 			err := room.Save()
 			if err != nil {
 				return
 			}
-			player.Olc.Redit.TargetRoom.Exits.Set(pair.Key, Rnum{ZoneId: room.Zone.Id, RoomId: room.Id})
+			player.Olc.Redit.TargetRoom.Exits.Set(pair.Key, Vnum{ZoneId: room.Zone.Id, VirtualId: room.Id})
 		} else {
 			player.Olc.Redit.TargetRoom.Exits.Set(pair.Key, pair.Value)
 		}
@@ -131,7 +131,7 @@ func handleReditMainMenu(player *Player) {
 	builder.WriteString(fmt.Sprintf("(2)Description:\r\n%s\r\n", player.Olc.Redit.EditRoom.Description))
 	builder.WriteString("(3)Exits:\r\n")
 	for pair := player.Olc.Redit.EditRoom.Exits.Oldest(); pair != nil; pair = pair.Next() {
-		if pair.Value.ZoneId != -1 && pair.Value.RoomId != -1 {
+		if pair.Value.ZoneId != -1 && pair.Value.VirtualId != -1 {
 			builder.WriteString(fmt.Sprintf("%s: %s\r\n", pair.Key, pair.Value.ToString()))
 		} else {
 			builder.WriteString(fmt.Sprintf("%s: None\r\n", pair.Key))
@@ -223,7 +223,7 @@ func handleReditExits(player *Player) {
 	builder := strings.Builder{}
 	i := 1
 	for pair := player.Olc.Redit.EditRoom.Exits.Oldest(); pair != nil; pair = pair.Next() {
-		if pair.Value.RoomId != -1 && pair.Value.ZoneId != -1 {
+		if pair.Value.VirtualId != -1 && pair.Value.ZoneId != -1 {
 			builder.WriteString(fmt.Sprintf("(%d)%s: %s\r\n", i, pair.Key, pair.Value.ToString()))
 		} else {
 			builder.WriteString(fmt.Sprintf("(%d)%s: None\r\n", i, pair.Key))
@@ -268,7 +268,7 @@ func handleReditExitsInput(player *Player) {
 }
 
 func handleReditExitEdit(player *Player) {
-	var rnum Rnum
+	var rnum Vnum
 	var found bool
 	if rnum, found = player.Olc.Redit.EditRoom.Exits.Get(player.Olc.Redit.EditDirection); !found {
 		player.SendToCharacter("Exit not found.\r\n")
@@ -277,9 +277,9 @@ func handleReditExitEdit(player *Player) {
 	}
 
 	var roomId string
-	if rnum.ZoneId == -1 && rnum.RoomId == -1 {
+	if rnum.ZoneId == -1 && rnum.VirtualId == -1 {
 		roomId = "None"
-	} else if rnum.RoomId == 0 {
+	} else if rnum.VirtualId == 0 {
 		roomId = "New Room"
 	} else {
 		roomId = rnum.ToString()
@@ -327,13 +327,13 @@ func handleReditExitEditRoomSelectInput(player *Player) {
 		return
 	}
 
-	rnum, err := ParseRnum(rnumStr)
+	rnum, err := ParseVnum(rnumStr)
 	if err != nil {
 		player.SendToCharacter("Invalid room id.\r\n")
 		player.Olc.Redit.State = ReditExitEdit
 		return
 	}
-	if len(player.Olc.Redit.EditRoom.Zone.Rooms) < rnum.RoomId {
+	if len(player.Olc.Redit.EditRoom.Zone.Rooms) < rnum.VirtualId {
 		player.SendToCharacter("Invalid room id.\r\n")
 		player.Olc.Redit.State = ReditExitEdit
 		return
@@ -344,11 +344,11 @@ func handleReditExitEditRoomSelectInput(player *Player) {
 }
 
 func handleReditExitEditNewRoom(player *Player) {
-	player.Olc.Redit.EditRoom.Exits.Set(player.Olc.Redit.EditDirection, Rnum{ZoneId: -2, RoomId: -2})
+	player.Olc.Redit.EditRoom.Exits.Set(player.Olc.Redit.EditDirection, Vnum{ZoneId: -2, VirtualId: -2})
 	player.Olc.Redit.State = ReditExits
 }
 
 func handleReditExitEditRemoveRoom(player *Player) {
-	player.Olc.Redit.EditRoom.Exits.Set(player.Olc.Redit.EditDirection, Rnum{ZoneId: -1, RoomId: -1})
+	player.Olc.Redit.EditRoom.Exits.Set(player.Olc.Redit.EditDirection, Vnum{ZoneId: -1, VirtualId: -1})
 	player.Olc.Redit.State = ReditExits
 }

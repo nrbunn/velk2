@@ -13,11 +13,14 @@ const (
 type Olc struct {
 	Mode  MODE
 	Redit *ReditData
+	Medit *MeditData
 }
 
 func HandleOlc(player *Player) {
 	switch player.Olc.Mode {
 	case ReditMode:
 		handleRedit(player)
+	case MeditMode:
+		handleMedit(player)
 	}
 }

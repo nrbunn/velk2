@@ -35,6 +35,7 @@ func initializeCommands() *Commands {
 	cmds.AddCommand("gossip", Gossip)
 	cmds.AddCommand("kill", Kill)
 	cmds.AddCommand("look", Look)
+	cmds.AddCommand("medit", Medit)
 	cmds.AddCommand("redit", Redit)
 	cmds.AddCommand("say", Say)
 	return cmds
